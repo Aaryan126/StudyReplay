@@ -13,12 +13,12 @@ export function ButtonLink({
 }: ButtonLinkProps) {
   const styles =
     variant === "primary"
-      ? "bg-[var(--accent)] text-white hover:bg-[#4b4bc4]"
-      : "border border-[var(--border)] bg-white text-[var(--foreground)] hover:bg-slate-50";
+      ? "bg-[var(--accent)] text-white shadow-sm hover:bg-[var(--accent-strong)]"
+      : "border border-[var(--border)] bg-white text-[var(--foreground)] hover:border-[#cbd5ce] hover:bg-[var(--surface-subtle)]";
 
   return (
     <Link
-      className={`inline-flex min-h-11 items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${styles}`}
+      className={`inline-flex min-h-11 items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold transition-all ${styles}`}
       href={href}
     >
       {children}

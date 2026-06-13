@@ -8,11 +8,11 @@ describe("Home", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /turn any lecture into a tutor that remembers every timestamp/i,
+        name: /the tutor that knows exactly where you got lost/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /open demo workspace/i }),
+      screen.getByRole("link", { name: /explore the demo/i }),
     ).toHaveAttribute("href", "/demo");
   });
 });

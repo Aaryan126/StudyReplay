@@ -1,19 +1,40 @@
-import { RoutePlaceholder } from "@/components/route-placeholder";
+import { notFound } from "next/navigation";
+
+import { VideoWorkspace } from "@/components/video-workspace";
+import { demoTutorResponse, demoWrongAnswerFeedback } from "@/lib/db/demo-data";
+import {
+  getChaptersByVideoId,
+  getQuizQuestionsByVideoId,
+  getVideoById,
+  listToolLogs,
+} from "@/lib/db/demo-store";
 
 type VideoWorkspacePageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function VideoWorkspacePage({
-  params,
-}: VideoWorkspacePageProps) {
+export default async function VideoWorkspacePage({ params }: VideoWorkspacePageProps) {
   const { id } = await params;
+  const video = getVideoById(id);
+
+  if (!video) {
+    notFound();
+  }
 
   return (
-    <RoutePlaceholder
-      description={`The workspace route for video “${id}” is ready for the Phase 1 interface.`}
-      eyebrow="Video workspace"
-      title="A focused place to watch, ask, test, and revisit."
+    <VideoWorkspace
+      chapters={getChaptersByVideoId(video.id)}
+      feedback={{
+        misconception: demoWrongAnswerFeedback.misconception!,
+        explanation: demoWrongAnswerFeedback.explanation!,
+        startSec: demoWrongAnswerFeedback.recommendedStartSec!,
+        endSec: demoWrongAnswerFeedback.recommendedEndSec!,
+        followUpQuestion: demoWrongAnswerFeedback.followUpQuestion,
+      }}
+      logs={listToolLogs()}
+      question={getQuizQuestionsByVideoId(video.id)[0]}
+      tutor={demoTutorResponse}
+      video={video}
     />
   );
 }

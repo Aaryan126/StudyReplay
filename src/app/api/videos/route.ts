@@ -1,6 +1,8 @@
+import { listVideos } from "@/lib/db/demo-store";
+
 export function GET() {
   return Response.json({
-    data: [],
+    data: listVideos(),
     mode: "mock",
   });
 }

@@ -1,11 +1,34 @@
-import { RoutePlaceholder } from "@/components/route-placeholder";
+import { VideoWorkspace } from "@/components/video-workspace";
+import {
+  DEMO_VIDEO_ID,
+  demoTutorResponse,
+  demoWrongAnswerFeedback,
+} from "@/lib/db/demo-data";
+import {
+  getChaptersByVideoId,
+  getQuizQuestionsByVideoId,
+  getVideoById,
+  listToolLogs,
+} from "@/lib/db/demo-store";
 
 export default function DemoPage() {
+  const video = getVideoById(DEMO_VIDEO_ID)!;
+  const question = getQuizQuestionsByVideoId(video.id)[0];
+
   return (
-    <RoutePlaceholder
-      description="The deterministic mock demo will be populated after the UI shell and local data phases are complete."
-      eyebrow="Demo mode"
-      title="A reliable sponsor-free demo route is in place."
+    <VideoWorkspace
+      chapters={getChaptersByVideoId(video.id)}
+      feedback={{
+        misconception: demoWrongAnswerFeedback.misconception!,
+        explanation: demoWrongAnswerFeedback.explanation!,
+        startSec: demoWrongAnswerFeedback.recommendedStartSec!,
+        endSec: demoWrongAnswerFeedback.recommendedEndSec!,
+        followUpQuestion: demoWrongAnswerFeedback.followUpQuestion,
+      }}
+      logs={listToolLogs()}
+      question={question}
+      tutor={demoTutorResponse}
+      video={video}
     />
   );
 }
