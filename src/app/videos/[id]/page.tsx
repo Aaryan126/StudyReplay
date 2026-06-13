@@ -4,7 +4,6 @@ import { VideoWorkspace } from "@/components/video-workspace";
 import { demoTutorResponse, demoWrongAnswerFeedback } from "@/lib/db/demo-data";
 import {
   getChaptersByVideoId,
-  getQuizQuestionsByVideoId,
   getVideoById,
   listToolLogs,
 } from "@/lib/db/demo-store";
@@ -32,7 +31,6 @@ export default async function VideoWorkspacePage({ params }: VideoWorkspacePageP
         followUpQuestion: demoWrongAnswerFeedback.followUpQuestion,
       }}
       logs={listToolLogs()}
-      question={getQuizQuestionsByVideoId(video.id)[0]}
       tutor={demoTutorResponse}
       video={video}
     />

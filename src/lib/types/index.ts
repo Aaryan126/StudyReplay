@@ -63,6 +63,8 @@ export type QuizQuestion = {
   difficulty: "easy" | "medium" | "hard";
 };
 
+export type PublicQuizQuestion = Omit<QuizQuestion, "expectedAnswer">;
+
 export type LearnerAnswer = {
   id: string;
   questionId: string;

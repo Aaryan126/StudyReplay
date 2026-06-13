@@ -11,6 +11,6 @@ describe("VideoWorkspacePage", () => {
     expect(screen.getByRole("region", { name: /video player/i })).toBeInTheDocument();
     expect(screen.getByText("Caching versus routing")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /ask studyreplay/i })).toBeInTheDocument();
-    expect(screen.getByText(/what is the difference between context caching and model routing/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /test me/i })).toBeInTheDocument();
   });
 });

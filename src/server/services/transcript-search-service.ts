@@ -27,6 +27,7 @@ const STOP_WORDS = new Set([
   "what",
   "where",
   "why",
+  "work",
 ]);
 
 export type TranscriptSource = (videoId: string) => TranscriptSegment[];

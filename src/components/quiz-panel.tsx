@@ -1,28 +1,165 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
 import { EmptyState } from "@/components/empty-state";
 import { Panel } from "@/components/panel";
+import type { PublicQuizQuestion } from "@/lib/types";
 import { formatTimestampRange } from "@/lib/utils/time";
 
-type QuizPanelProps = {
-  question?: string;
-  sourceStartSec?: number;
-  sourceEndSec?: number;
+type QuizSession = {
+  questions: PublicQuizQuestion[];
+  currentIndex: number;
+  answers: Record<string, string>;
+  submitted: string[];
 };
 
-export function QuizPanel({ question, sourceStartSec, sourceEndSec }: QuizPanelProps) {
-  const hasTimestamp = sourceStartSec !== undefined && sourceEndSec !== undefined;
+type QuizPanelProps = {
+  videoId: string;
+};
+
+function loadQuizSession(storageKey: string): QuizSession | null {
+  if (typeof window === "undefined") return null;
+
+  const saved = window.sessionStorage.getItem(storageKey);
+  if (!saved) return null;
+
+  try {
+    const parsed = JSON.parse(saved) as QuizSession;
+    return Array.isArray(parsed.questions) && parsed.questions.length > 0
+      ? parsed
+      : null;
+  } catch {
+    window.sessionStorage.removeItem(storageKey);
+    return null;
+  }
+}
+
+export function QuizPanel({ videoId }: QuizPanelProps) {
+  const storageKey = `studyreplay-quiz-${videoId}`;
+  const [session, setSession] = useState<QuizSession | null>(() =>
+    loadQuizSession(storageKey),
+  );
+  const [answer, setAnswer] = useState(() => {
+    const saved = loadQuizSession(storageKey);
+    return saved?.answers[saved.questions[saved.currentIndex]?.id ?? ""] ?? "";
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session) {
+      window.sessionStorage.setItem(storageKey, JSON.stringify(session));
+    }
+  }, [session, storageKey]);
+
+  const currentQuestion = session?.questions[session.currentIndex];
+  const isSubmitted = useMemo(
+    () => Boolean(currentQuestion && session?.submitted.includes(currentQuestion.id)),
+    [currentQuestion, session],
+  );
+
+  async function generateQuiz() {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/videos/${videoId}/quiz`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: 3 }),
+      });
+      const body = (await response.json()) as { data?: PublicQuizQuestion[]; error?: string };
+      if (!response.ok || !body.data?.length) {
+        throw new Error(body.error ?? "Unable to generate quiz.");
+      }
+      setSession({ questions: body.data, currentIndex: 0, answers: {}, submitted: [] });
+      setAnswer("");
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to generate quiz.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function submitAnswer(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session || !currentQuestion || !answer.trim()) return;
+    setSession({
+      ...session,
+      answers: { ...session.answers, [currentQuestion.id]: answer.trim() },
+      submitted: session.submitted.includes(currentQuestion.id)
+        ? session.submitted
+        : [...session.submitted, currentQuestion.id],
+    });
+  }
+
+  function moveQuestion(direction: 1 | -1) {
+    if (!session) return;
+    const nextIndex = Math.min(
+      session.questions.length - 1,
+      Math.max(0, session.currentIndex + direction),
+    );
+    const nextQuestion = session.questions[nextIndex];
+    setSession({ ...session, currentIndex: nextIndex });
+    setAnswer(session.answers[nextQuestion?.id ?? ""] ?? "");
+  }
 
   return (
-    <Panel action={<span className="rounded-full bg-[#eef2ef] px-2.5 py-1 text-xs font-bold text-[var(--muted)]">1 of 3</span>} description="Check understanding, not memory" title="Knowledge check">
-      {question ? (
-        <div>
-          <p className="text-base font-semibold leading-7">{question}</p>
-          {hasTimestamp ? <p className="mt-2 text-xs font-bold text-[var(--accent)]">Source: {formatTimestampRange(sourceStartSec, sourceEndSec)}</p> : null}
-          <textarea aria-label="Quiz answer" className="mt-4 min-h-24 w-full resize-none rounded-xl border border-[var(--border)] p-3 text-sm outline-none placeholder:text-[#98a29b] focus:border-[#8cb8a0]" placeholder="Explain in your own words..." />
-          <button className="mt-3 w-full cursor-pointer rounded-xl bg-[#18231d] px-4 py-3 text-sm font-bold text-white hover:bg-[#26372e]" type="button">Check my answer</button>
-        </div>
+    <Panel
+      action={session ? <span className="rounded-full bg-[#eef2ef] px-2.5 py-1 text-xs font-bold text-[var(--muted)]">{session.currentIndex + 1} of {session.questions.length}</span> : null}
+      description="Check understanding, not memory"
+      title="Knowledge check"
+    >
+      {currentQuestion ? (
+        <form onSubmit={submitAnswer}>
+          <p className="text-base font-semibold leading-7">{currentQuestion.question}</p>
+          <p className="mt-2 text-xs font-bold text-[var(--accent)]">
+            Source: {formatTimestampRange(currentQuestion.sourceStartSec, currentQuestion.sourceEndSec)} · {currentQuestion.difficulty}
+          </p>
+
+          {currentQuestion.type === "multiple_choice" ? (
+            <fieldset className="mt-4 space-y-2">
+              <legend className="sr-only">Answer options</legend>
+              {currentQuestion.options?.map((option) => (
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] p-3 text-sm hover:bg-[var(--surface-subtle)]" key={option}>
+                  <input checked={answer === option} name={`answer-${currentQuestion.id}`} onChange={() => setAnswer(option)} type="radio" />
+                  <span>{option}</span>
+                </label>
+              ))}
+            </fieldset>
+          ) : (
+            <textarea
+              aria-label="Quiz answer"
+              className="mt-4 min-h-24 w-full resize-none rounded-xl border border-[var(--border)] p-3 text-sm outline-none placeholder:text-[#98a29b] focus:border-[#8cb8a0]"
+              onChange={(event) => setAnswer(event.target.value)}
+              placeholder="Explain in your own words..."
+              value={answer}
+            />
+          )}
+
+          <button
+            className="mt-3 w-full cursor-pointer rounded-xl bg-[#18231d] px-4 py-3 text-sm font-bold text-white hover:bg-[#26372e] disabled:cursor-not-allowed disabled:opacity-45"
+            disabled={!answer.trim()}
+            type="submit"
+          >
+            {isSubmitted ? "Answer saved" : "Submit answer"}
+          </button>
+          {isSubmitted ? <p className="mt-2 text-center text-xs font-medium text-[var(--accent)]">Saved for grading in the next phase.</p> : null}
+
+          <div className="mt-4 flex justify-between gap-3">
+            <button className="cursor-pointer text-sm font-semibold text-[var(--muted)] disabled:opacity-30" disabled={session.currentIndex === 0} onClick={() => moveQuestion(-1)} type="button">Previous</button>
+            <button className="cursor-pointer text-sm font-semibold text-[var(--accent)] disabled:opacity-30" disabled={session.currentIndex === session.questions.length - 1} onClick={() => moveQuestion(1)} type="button">Next question</button>
+          </div>
+        </form>
       ) : (
-        <EmptyState title="Ready for a knowledge check?" description="Generate a focused question from this video." />
+        <div>
+          <EmptyState title="Ready for a knowledge check?" description="Generate focused questions grounded in this video." />
+          <button className="mt-4 w-full cursor-pointer rounded-xl bg-[#18231d] px-4 py-3 text-sm font-bold text-white hover:bg-[#26372e] disabled:opacity-55" disabled={isLoading} onClick={generateQuiz} type="button">
+            {isLoading ? "Preparing quiz..." : "Test me"}
+          </button>
+        </div>
       )}
+      {error ? <p className="mt-3 text-sm font-medium text-red-700" role="alert">{error}</p> : null}
     </Panel>
   );
 }

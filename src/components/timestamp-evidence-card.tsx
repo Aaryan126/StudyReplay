@@ -5,9 +5,10 @@ type TimestampEvidenceCardProps = {
   endSec: number;
   reason: string;
   transcript?: string;
+  onSelect?: (startSec: number) => void;
 };
 
-export function TimestampEvidenceCard({ startSec, endSec, reason, transcript }: TimestampEvidenceCardProps) {
+export function TimestampEvidenceCard({ startSec, endSec, reason, transcript, onSelect }: TimestampEvidenceCardProps) {
   return (
     <article className="rounded-xl border border-[#c9ded2] bg-[var(--accent-soft)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -15,7 +16,7 @@ export function TimestampEvidenceCard({ startSec, endSec, reason, transcript }: 
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">Video evidence</p>
           <p className="mt-1 text-sm font-semibold">{reason}</p>
         </div>
-        <button className="cursor-pointer rounded-full bg-[var(--accent)] px-3.5 py-2 text-xs font-bold tabular-nums text-white hover:bg-[var(--accent-strong)]" type="button">
+        <button className="cursor-pointer rounded-full bg-[var(--accent)] px-3.5 py-2 text-xs font-bold tabular-nums text-white hover:bg-[var(--accent-strong)]" onClick={() => onSelect?.(startSec)} type="button">
           {formatTimestampRange(startSec, endSec)}
         </button>
       </div>

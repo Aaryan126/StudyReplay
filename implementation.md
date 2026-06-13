@@ -8,8 +8,8 @@ The purpose of this file is to keep the coding agent, human builder, and future 
 
 ## Current Status
 
-**Current phase:** Phase 4 complete; Phase 5 not started  
-**Overall status:** Local retrieval and mock/real AI adapter layers complete  
+**Current phase:** Phase 6 complete; Phase 7 not started  
+**Overall status:** Interactive grounded tutor and quiz generation flows complete  
 **Last updated:** 2026-06-13  
 **Current owner:** Coding agent / human developer  
 **Main branch state:** Directory is not initialized as a Git repository  
@@ -501,6 +501,152 @@ npm audit
 
 ---
 
+## 2026-06-13 — Phase 5: Ask-Video Flow
+
+### Summary
+
+Connected timestamp retrieval and the selected AI provider through a validated
+ask-video service and API. The tutor panel now accepts questions, displays
+grounded answers and evidence, reports provider/latency, and updates the video
+player when an evidence timestamp is selected.
+
+### Files changed
+
+- Server flow: `src/server/services/tutor-service.ts`
+- API: `src/app/api/videos/[id]/ask/route.ts`
+- Client UI: `src/components/tutor-panel.tsx`,
+  `src/components/learning-workspace-client.tsx`,
+  `src/components/timestamp-evidence-card.tsx`,
+  `src/components/video-player.tsx`, `src/components/video-workspace.tsx`
+- Tests: `src/tests/ask-video-route.test.ts`,
+  `src/tests/tutor-panel.test.tsx`
+
+### Features implemented
+
+- Validated `POST /api/videos/:id/ask` route.
+- Ranked local transcript retrieval before generation.
+- AI answer generation receives only retrieved timestamp evidence.
+- Honest local uncertainty response when no evidence is found.
+- Interactive tutor form with loading and error states.
+- Clickable evidence timestamp updates the selected video position.
+- Retrieval and provider latency/tool logging.
+
+### Test results
+
+- Lint: Passed.
+- Typecheck: Passed.
+- Tests after Phase 5: 9 files passed, 33 tests passed.
+- Build: Passed with the ask route included.
+
+### Manual acceptance checks
+
+- [x] Asking `What is context caching?` returns a grounded answer.
+- [x] Response includes 03:14–04:02 evidence.
+- [x] Selecting evidence updates the player timestamp.
+- [x] An unrelated question returns low-confidence uncertainty without evidence.
+
+### Issues found
+
+- The generic query term `work` caused an unrelated question to weakly match
+  transcript text. It was added to retrieval stop words to preserve honest
+  uncertainty behavior.
+
+### Decisions made
+
+- Skip the AI provider entirely when retrieval finds no adequate evidence.
+- Use a small client boundary for tutor/player interaction while keeping the
+  surrounding workspace server-rendered.
+
+### Next steps
+
+- Add generated quiz state and session persistence in Phase 6.
+
+---
+
+## 2026-06-13 — Phase 6: Quiz Generation Flow
+
+### Summary
+
+Implemented provider-backed quiz generation, local generated-quiz storage, a
+public API shape that omits expected answers, and a one-question-at-a-time UI
+with short-answer and multiple-choice support. Learner answers persist for the
+browser session and are ready for Phase 7 grading.
+
+### Files changed
+
+- Server flow: `src/server/services/quiz-service.ts`
+- API: `src/app/api/videos/[id]/quiz/route.ts`
+- Store/types: `src/lib/db/demo-store.ts`, `src/lib/types/index.ts`
+- Client UI: `src/components/quiz-panel.tsx`,
+  `src/components/learning-workspace-client.tsx`,
+  `src/components/video-workspace.tsx`
+- Route wiring: `src/app/demo/page.tsx`,
+  `src/app/videos/[id]/page.tsx`
+- Tests: `src/tests/quiz-route.test.ts`,
+  `src/tests/quiz-panel.test.tsx`, plus updated UI/route tests
+
+### Features implemented
+
+- `GET` and `POST /api/videos/:id/quiz` endpoints.
+- Quiz generation through the configured AI provider.
+- Generated question storage with expected answers retained server-side.
+- Public quiz responses omit `expectedAnswer`.
+- “Test me” generation flow with loading/error states.
+- One question at a time, source timestamps, difficulty labels, short answer,
+  and multiple choice.
+- Answer submission and navigation with `sessionStorage` persistence.
+
+### Commands run
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm audit
+npm run dev
+curl -X POST http://127.0.0.1:3000/api/videos/building-fast-ai-systems/ask
+curl -X POST http://127.0.0.1:3000/api/videos/building-fast-ai-systems/quiz
+curl http://127.0.0.1:3000/api/videos/building-fast-ai-systems/quiz
+```
+
+### Test results
+
+- Lint: Passed with no warnings.
+- Typecheck: Passed.
+- Unit/UI/integration tests: 11 files passed, 38 tests passed.
+- Build: Passed with ask and quiz routes included.
+- Dependency audit: 0 vulnerabilities.
+- Live mock smoke checks: grounded ask, uncertainty, quiz generation, quiz
+  listing, and `/demo` all succeeded.
+
+### Manual acceptance checks
+
+- [x] “Test me” loads three grounded questions.
+- [x] Questions display one at a time with source timestamps.
+- [x] Empty answers cannot be submitted.
+- [x] Submitted answers and current question persist during the browser session.
+- [x] Multiple-choice and short-answer questions render appropriately.
+
+### Issues found
+
+- React lint rejected synchronous session restoration inside an effect. Quiz
+  session state now uses lazy initialization from `sessionStorage`.
+
+### Decisions made
+
+- Do not expose expected answers to the browser.
+- Record submitted answers without grading them; grading and misconception
+  feedback remain owned by Phase 7.
+- Use browser-session persistence for MVP quiz continuity.
+
+### Next steps
+
+- Begin Phase 7 only: add the grading API and connect submitted answers to
+  structured misconception feedback, recommended timestamps, and retries.
+
+---
+
 ## Running Decision Log
 
 Use this section for architectural decisions.
@@ -515,6 +661,9 @@ Use this section for architectural decisions.
 | 2026-06-13 | Weighted lexical retrieval fallback | Deterministic, explainable, and testable without external embeddings | Embedding-only search |
 | 2026-06-13 | Shared OpenAI-compatible AI transport | Kimi and TokenRouter can share resiliency and validation while retaining named adapters | Separate duplicated HTTP clients |
 | 2026-06-13 | Keep real providers opt-in | Keys can exist without making development or demos depend on network availability | Automatically enable providers when keys exist |
+| 2026-06-13 | Retrieval gates video answers | Prevents the model from inventing video-specific context when evidence is absent | Always call the model |
+| 2026-06-13 | Keep quiz answers server-only | Avoids leaking grading keys in public API responses | Return complete question objects |
+| 2026-06-13 | Persist quiz state in sessionStorage | Maintains progress without adding a database before it is needed | URL state or permanent local storage |
 
 ---
 
@@ -535,8 +684,8 @@ Use this section for architectural decisions.
 - [x] Add demo data.
 - [x] Implement timestamp retrieval.
 - [x] Implement AI adapters.
-- [ ] Implement ask-video flow.
-- [ ] Implement quiz flow.
+- [x] Implement ask-video flow.
+- [x] Implement quiz flow.
 - [ ] Implement misconception detection.
 - [ ] Integrate VideoDB.
 - [ ] Integrate Daytona.
@@ -549,9 +698,9 @@ Use this section for architectural decisions.
 
 - [ ] Demo video loads.
 - [x] Chapters show timestamps.
-- [ ] Ask-video flow works.
+- [x] Ask-video flow works.
 - [x] Timestamped evidence appears.
-- [ ] Quiz generation works.
+- [x] Quiz generation works.
 - [ ] Wrong answer produces misconception diagnosis.
 - [ ] Recommended timestamp is clickable.
 - [ ] Follow-up question appears.

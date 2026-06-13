@@ -2,25 +2,22 @@ import Link from "next/link";
 
 import { ChapterList, type ChapterListItem } from "@/components/chapter-list";
 import { MisconceptionFeedback } from "@/components/misconception-feedback";
+import { LearningWorkspaceClient } from "@/components/learning-workspace-client";
 import { PageShell } from "@/components/page-shell";
 import { Panel } from "@/components/panel";
-import { QuizPanel } from "@/components/quiz-panel";
 import { StatusBadge } from "@/components/status-badge";
 import { ToolCallTimeline } from "@/components/tool-call-timeline";
-import { TutorPanel } from "@/components/tutor-panel";
-import { VideoPlayer } from "@/components/video-player";
 import type { ToolCallLog } from "@/lib/types";
 
 type VideoWorkspaceProps = {
   video: { id: string; title: string; durationSeconds?: number; status: string };
   chapters?: ChapterListItem[];
-  question?: { question: string; sourceStartSec: number; sourceEndSec: number };
   tutor?: { answer: string; evidence: { startSec: number; endSec: number; reason: string; transcript?: string } };
   feedback?: { misconception: string; explanation: string; startSec: number; endSec: number; followUpQuestion?: string };
   logs?: ToolCallLog[];
 };
 
-export function VideoWorkspace({ video, chapters = [], question, tutor, feedback, logs = [] }: VideoWorkspaceProps) {
+export function VideoWorkspace({ video, chapters = [], tutor, feedback, logs = [] }: VideoWorkspaceProps) {
   return (
     <PageShell>
       <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
@@ -34,17 +31,14 @@ export function VideoWorkspace({ video, chapters = [], question, tutor, feedback
         </header>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
-          <div className="space-y-5">
-            <VideoPlayer durationSeconds={video.durationSeconds} title={video.title} />
+          <LearningWorkspaceClient tutor={tutor} video={video} />
+          <div className="space-y-5 xl:col-start-1 xl:row-start-2">
             {feedback ? <MisconceptionFeedback {...feedback} /> : null}
             <Panel description="Jump directly to a concept" title="Chapter map">
               <ChapterList chapters={chapters} />
             </Panel>
           </div>
-
-          <div className="space-y-5">
-            <TutorPanel {...tutor} />
-            <QuizPanel {...question} />
+          <div className="xl:col-start-2 xl:row-start-4">
             <Panel description="How the answer was assembled" title="Orchestration log">
               <ToolCallTimeline items={logs} />
             </Panel>

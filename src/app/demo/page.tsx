@@ -6,15 +6,12 @@ import {
 } from "@/lib/db/demo-data";
 import {
   getChaptersByVideoId,
-  getQuizQuestionsByVideoId,
   getVideoById,
   listToolLogs,
 } from "@/lib/db/demo-store";
 
 export default function DemoPage() {
   const video = getVideoById(DEMO_VIDEO_ID)!;
-  const question = getQuizQuestionsByVideoId(video.id)[0];
-
   return (
     <VideoWorkspace
       chapters={getChaptersByVideoId(video.id)}
@@ -26,7 +23,6 @@ export default function DemoPage() {
         followUpQuestion: demoWrongAnswerFeedback.followUpQuestion,
       }}
       logs={listToolLogs()}
-      question={question}
       tutor={demoTutorResponse}
       video={video}
     />

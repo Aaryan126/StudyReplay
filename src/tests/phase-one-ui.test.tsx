@@ -6,6 +6,7 @@ import { MisconceptionFeedback } from "@/components/misconception-feedback";
 import { TimestampEvidenceCard } from "@/components/timestamp-evidence-card";
 import { TutorPanel } from "@/components/tutor-panel";
 import { VideoPlayer } from "@/components/video-player";
+import { QuizPanel } from "@/components/quiz-panel";
 
 describe("Phase 1 UI components", () => {
   it("renders the video player placeholder", () => {
@@ -32,8 +33,9 @@ describe("Phase 1 UI components", () => {
   });
 
   it("renders tutor and chapter empty states", () => {
-    render(<><TutorPanel /><ChapterList chapters={[]} /></>);
+    render(<><TutorPanel videoId="demo-video" /><QuizPanel videoId="demo-video" /><ChapterList chapters={[]} /></>);
     expect(screen.getByText("Ask about this lesson")).toBeInTheDocument();
+    expect(screen.getByText("Ready for a knowledge check?")).toBeInTheDocument();
     expect(screen.getByText("No chapters yet")).toBeInTheDocument();
   });
 
