@@ -107,3 +107,13 @@ export type PracticeTask = {
   starterCode?: string;
   successCriteria: string[];
 };
+
+export type PracticeSession = {
+  task: PracticeTask;
+  sandboxId?: string;
+  sandboxProvider: "Mock" | "Daytona";
+  sandboxStatus: "ready" | "fallback";
+  output?: string;
+  exitCode?: number;
+  fallbackReason?: string;
+};

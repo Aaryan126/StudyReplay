@@ -5,8 +5,8 @@ import { MisconceptionFeedback } from "@/components/misconception-feedback";
 import { LearningWorkspaceClient } from "@/components/learning-workspace-client";
 import { PageShell } from "@/components/page-shell";
 import { Panel } from "@/components/panel";
+import { OrchestrationPanel } from "@/components/orchestration-panel";
 import { StatusBadge } from "@/components/status-badge";
-import { ToolCallTimeline } from "@/components/tool-call-timeline";
 import type { ToolCallLog } from "@/lib/types";
 
 type VideoWorkspaceProps = {
@@ -39,9 +39,7 @@ export function VideoWorkspace({ video, chapters = [], tutor, feedback, logs = [
             </Panel>
           </div>
           <div className="xl:col-start-2 xl:row-start-4">
-            <Panel description="How the answer was assembled" title="Orchestration log">
-              <ToolCallTimeline items={logs} />
-            </Panel>
+            <OrchestrationPanel initialItems={logs} />
           </div>
         </div>
       </div>

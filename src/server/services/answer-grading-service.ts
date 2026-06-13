@@ -1,5 +1,5 @@
 import type { AIProvider } from "@/lib/ai/contracts";
-import { createAIProvider } from "@/lib/ai/provider-factory";
+import { runRoutedAITask } from "@/lib/ai/orchestrator";
 import {
   createToolLog,
   getQuizQuestionById,
@@ -10,7 +10,7 @@ import {
 import type { LearnerAnswer } from "@/lib/types";
 
 export class AnswerGradingService {
-  constructor(private readonly provider: AIProvider = createAIProvider()) {}
+  constructor(private readonly provider?: AIProvider) {}
 
   async grade(questionId: string, answer: string): Promise<LearnerAnswer> {
     const question = getQuizQuestionById(questionId);
@@ -29,11 +29,14 @@ export class AnswerGradingService {
         segment.startSec < question.sourceEndSec,
     );
     const startedAt = performance.now();
-    const feedback = await this.provider.gradeAnswer({
+    const input = {
       question,
       learnerAnswer: answer,
       evidence,
-    });
+    };
+    const feedback = this.provider
+      ? await this.provider.gradeAnswer(input)
+      : (await runRoutedAITask("misconception", (provider) => provider.gradeAnswer(input))).result;
 
     const start = feedback.recommendedStartSec;
     const end = feedback.recommendedEndSec;

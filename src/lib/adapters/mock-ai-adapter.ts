@@ -106,7 +106,8 @@ export class MockAIAdapter implements AIProvider {
   async generatePractice(input: GeneratePracticeInput): Promise<PracticeTask> {
     return this.logged("Generate practice", () => ({
       title: `Practice: ${input.concept}`,
-      instructions: "Write one sentence that distinguishes caching from routing, then give one use case for each.",
+      instructions: "Complete the explanation so it distinguishes caching from routing, then run the verification script.",
+      starterCode: `const explanation = "Caching reuses prior computation; model routing selects a model for the task.";\n\nconsole.log(explanation);`,
       successCriteria: ["Defines what is reused", "Defines what is selected", "Uses the terms accurately"],
     }));
   }

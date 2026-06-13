@@ -8,8 +8,8 @@ The purpose of this file is to keep the coding agent, human builder, and future 
 
 ## Current Status
 
-**Current phase:** Phase 8 complete; Phase 9 not started  
-**Overall status:** Core misconception loop and VideoDB-backed retrieval boundary complete  
+**Current phase:** Phase 10 complete; Phase 11 not started  
+**Overall status:** Executable practice, cost-aware routing, response caching, and live orchestration visibility complete  
 **Last updated:** 2026-06-13  
 **Current owner:** Coding agent / human developer  
 **Main branch state:** Directory is not initialized as a Git repository  
@@ -27,8 +27,8 @@ Framework: Next.js 16.2.9 / React 19.2.7 / TypeScript 6.0.3 / Tailwind CSS 4.3.1
 Database: In-memory deterministic demo store
 AI provider mode: Mock by default; Kimi and TokenRouter adapters available
 VideoDB mode: Mock adapter with local fallback; real REST adapter available
-Daytona mode: Mock
-TokenRouter mode: Mock
+Daytona mode: Mock default / Real SDK ready
+TokenRouter mode: Mock default / Real route ready when endpoint and model are configured
 Nosana mode: Disabled
 ```
 
@@ -40,8 +40,8 @@ Nosana mode: Disabled
 |---|---|---|---|
 | VideoDB | REST and mock adapters implemented | Mock default / Real ready | Search, transcript, URL registration, logs, and local fallback |
 | Kimi | Adapter implemented | Mock default / Real ready | OpenAI-compatible server adapter; key, base URL, and model configured |
-| Daytona | Adapter directory reserved | Mock | No execution flow implemented yet |
-| TokenRouter | Adapter implemented | Mock default / Config pending | Key is set; base URL and model still need sponsor-provided values |
+| Daytona | Official SDK and mock adapters implemented | Mock default / Real ready | Creates sandboxes, writes starter files, executes code, logs latency, and falls back to text-only practice |
+| TokenRouter | Adapter, routing policy, cache, and fallback implemented | Mock default / Config pending | Key is set; base URL and model still need sponsor-provided values for real mode |
 | Nosana | Optional | Disabled | No API calls implemented |
 
 ---
@@ -805,6 +805,137 @@ curl -X POST http://127.0.0.1:3000/api/videos/building-fast-ai-systems/ask
 
 ---
 
+## 2026-06-13 — Phase 9: Daytona Practice Sandbox
+
+### Summary
+
+Added targeted coding practice generated from quiz misconceptions. Practice can
+run in a deterministic local sandbox or a real Daytona sandbox through the
+official TypeScript SDK, with a text-only fallback when provisioning fails.
+
+### Files changed
+
+- Sandbox layer: `src/lib/sandbox/*`, `src/lib/adapters/daytona-adapter.ts`,
+  `src/lib/adapters/mock-sandbox-adapter.ts`
+- Practice flow: `src/server/services/practice-service.ts`,
+  `src/app/api/practice/generate/route.ts`, `src/app/api/practice/run/route.ts`
+- UI: `src/components/practice-card.tsx`, `src/components/quiz-panel.tsx`,
+  `src/components/misconception-feedback.tsx`
+- Configuration/dependencies: `.env.example`, `package.json`, `package-lock.json`
+- Tests: `src/tests/practice-service.test.ts`,
+  `src/tests/practice-route.test.ts`, `src/tests/practice-card.test.tsx`
+
+### Features implemented
+
+- Provider-neutral create, write, run, and delete sandbox contract.
+- Official `@daytona/sdk` adapter with short-lived TypeScript sandboxes.
+- Editable starter code, initial verification, reruns, output, exit status, and
+  visible provider status in the misconception flow.
+- Controlled fallback that preserves the exercise when Daytona is unavailable.
+
+### Test results
+
+- Lint: Passed.
+- Typecheck: Passed.
+- Focused Phase 9 tests: 3 files passed, 6 tests passed.
+- Full suite after Phase 9: 16 files passed, 56 tests passed.
+- Build: Passed after allowing Turbopack's internal worker port.
+
+### Issues found
+
+- The restricted execution sandbox blocks Turbopack from binding its internal
+  CSS worker port; the same build passes with the required system permission.
+- Real Daytona execution was not invoked automatically because
+  `SANDBOX_PROVIDER` remains explicitly mock-first.
+
+### Environment handoff
+
+- Use `SANDBOX_PROVIDER=daytona` to enable real execution.
+- `DAYTONA_API_KEY` is required. `DAYTONA_API_URL` and `DAYTONA_TARGET` are
+  optional and may be left blank for Daytona defaults.
+
+### Next steps
+
+- Implement Phase 10 routing, caching, latency metrics, and orchestration UI.
+
+---
+
+## 2026-06-13 — Phase 10: TokenRouter Optimization and Caching
+
+### Summary
+
+Added explicit simple/complex AI routing, stable caching for repeated timestamp
+explanations and quizzes, provider fallback, latency logs, and a live
+orchestration panel that refreshes after learner interactions.
+
+### Files changed
+
+- Routing/cache: `src/lib/ai/routing.ts`, `src/lib/ai/orchestrator.ts`,
+  `src/lib/cache/response-cache.ts`
+- Services: tutor, quiz, answer grading, and practice services
+- API/UI: `src/app/api/logs/route.ts`,
+  `src/components/orchestration-panel.tsx`, tutor/quiz/practice panels
+- Tests: `src/tests/routing-cache.test.ts`,
+  `src/tests/orchestration-panel.test.tsx`, updated tutor tests
+
+### Features implemented
+
+- Simple quiz/explanation work routes through TokenRouter when real mode is
+  complete; complex misconception/practice work routes through Kimi when opted in.
+- Missing configuration and provider errors fall back to deterministic mock AI.
+- Canonical cache keys make equivalent inputs stable across property ordering.
+- Repeated explanations are marked cached in the tutor UI; repeated quizzes
+  avoid another provider call.
+- Logs expose route complexity, provider choice, cache hit/miss, fallback, and
+  operation latency through `/api/logs` and the live workspace panel.
+
+### Commands run
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm audit
+```
+
+### Test results
+
+- Lint: Passed.
+- Typecheck: Passed.
+- Focused Phase 10 tests: 3 files passed, 7 tests passed.
+- Full suite: 18 files passed, 62 tests passed.
+- Build: Passed; all page and API routes generated.
+- Dependency audit: Reports 15 high-severity transitive `protobufjs` findings
+  under Daytona's OpenTelemetry dependencies. The offered forced fix downgrades
+  Daytona to 0.173.0, so it was not applied automatically.
+
+### Manual acceptance checks
+
+- [x] Repeated explanation responses are marked cached.
+- [x] TokenRouter/cache decisions are visible in orchestration data and UI.
+- [x] Mock fallback keeps every AI task operational without external APIs.
+- [ ] Real TokenRouter request pending sponsor base URL and model values.
+- [ ] Real Daytona request pending explicit `SANDBOX_PROVIDER=daytona` smoke test.
+
+### Decisions made
+
+- Keep all real integrations opt-in even when credentials exist.
+- Treat TokenRouter as both the simple-task route and the visible optimization
+  layer for cache/routing events.
+- Use process-local cache storage for the MVP; persistent/distributed cache is
+  deferred until deployment requirements exist.
+- Do not force a breaking Daytona downgrade solely to satisfy the current audit.
+
+### Next steps
+
+- Begin Phase 11 only if the optional Nosana worker improves the demo story;
+  otherwise continue to Phase 12 hardening when directed.
+- Obtain `TOKENROUTER_BASE_URL` and `TOKENROUTER_MODEL` before enabling
+  `TOKEN_ROUTER_MODE=real`.
+
+---
+
 ## Running Decision Log
 
 Use this section for architectural decisions.
@@ -825,6 +956,9 @@ Use this section for architectural decisions.
 | 2026-06-13 | Validate recommended timestamps against duration | Prevents malformed provider output from producing impossible replay links | Trust provider output |
 | 2026-06-13 | Video-memory provider with local fallback | Makes VideoDB central without allowing an external outage to break the demo | VideoDB-only retrieval |
 | 2026-06-13 | VideoDB REST integration | Uses the documented API directly and avoids another runtime dependency | Node SDK |
+| 2026-06-13 | Official Daytona TypeScript SDK | Uses the current sandbox lifecycle and filesystem/process APIs directly | Custom REST calls |
+| 2026-06-13 | Task-aware AI routing with deterministic fallback | Keeps real providers opt-in while making routing choices explicit and testable | One global AI provider |
+| 2026-06-13 | Process-local stable response cache | Delivers deterministic MVP cache behavior without adding infrastructure | Redis or database cache |
 
 ---
 
@@ -834,6 +968,7 @@ Use this section for architectural decisions.
 |---|---|---|---|
 | Working directory has no Git metadata | Low | Open | Initialize Git when source-control setup is desired |
 | Turbopack build needs local port access | Low | Documented | Build passes outside the restricted sandbox |
+| Daytona SDK dependency audit findings | High | Open upstream | 15 transitive `protobufjs` findings; npm's forced fix requires a breaking Daytona downgrade |
 
 ---
 
@@ -849,8 +984,8 @@ Use this section for architectural decisions.
 - [x] Implement quiz flow.
 - [x] Implement misconception detection.
 - [x] Integrate VideoDB.
-- [ ] Integrate Daytona.
-- [ ] Add TokenRouter/caching.
+- [x] Integrate Daytona.
+- [x] Add TokenRouter/caching.
 - [ ] Polish demo.
 
 ---
@@ -865,7 +1000,7 @@ Use this section for architectural decisions.
 - [x] Wrong answer produces misconception diagnosis.
 - [x] Recommended timestamp is clickable.
 - [x] Follow-up question appears.
-- [ ] Daytona practice works or fallback works.
+- [x] Daytona practice works or fallback works.
 - [x] Orchestration log shows sponsor tools.
 - [x] App handles missing API keys.
 - [x] Build passes.

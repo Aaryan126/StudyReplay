@@ -1,5 +1,6 @@
 import type { AIProvider } from "@/lib/ai/contracts";
-import { createAIProvider } from "@/lib/ai/provider-factory";
+import { runRoutedAITask } from "@/lib/ai/orchestrator";
+import { createStableCacheKey, responseCache } from "@/lib/cache/response-cache";
 import {
   createToolLog,
   getChaptersByVideoId,
@@ -16,7 +17,7 @@ function toPublicQuestion({ expectedAnswer: _expectedAnswer, ...question }: Quiz
 }
 
 export class QuizService {
-  constructor(private readonly provider: AIProvider = createAIProvider()) {}
+  constructor(private readonly provider?: AIProvider) {}
 
   async generate(videoId: string, count = 3): Promise<PublicQuizQuestion[]> {
     const video = getVideoById(videoId);
@@ -25,12 +26,35 @@ export class QuizService {
     }
 
     const startedAt = performance.now();
-    const questions = await this.provider.generateQuiz({
+    const input = {
       video,
       chapters: getChaptersByVideoId(videoId),
       transcript: getTranscriptByVideoId(videoId),
       count,
-    });
+    };
+    const cacheKey = createStableCacheKey("quiz", { videoId, count });
+    let questions = responseCache.get<QuizQuestion[]>(cacheKey);
+    if (questions) {
+      createToolLog({
+        tool: "TokenRouter",
+        operation: "Cache hit · quiz",
+        status: "success",
+        latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
+        outputSummary: `Returned ${questions.length} cached question(s).`,
+      });
+    } else {
+      createToolLog({
+        tool: "TokenRouter",
+        operation: "Cache miss · quiz",
+        status: "success",
+        latencyMs: 0,
+        outputSummary: "No matching quiz was cached; routing generation.",
+      });
+      const routed = this.provider
+        ? { result: await this.provider.generateQuiz(input) }
+        : await runRoutedAITask("quiz", (provider) => provider.generateQuiz(input));
+      questions = responseCache.set(cacheKey, routed.result);
+    }
     const validQuestions = questions
       .filter(
         (question) =>

@@ -5,8 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Panel } from "@/components/panel";
 import { MisconceptionFeedback } from "@/components/misconception-feedback";
+import { PracticeCard } from "@/components/practice-card";
 import type { LearnerAnswer, PublicQuizQuestion } from "@/lib/types";
 import { formatTimestampRange } from "@/lib/utils/time";
+import { notifyOrchestrationUpdated } from "@/lib/utils/orchestration-events";
 
 type QuizSession = {
   questions: PublicQuizQuestion[];
@@ -80,6 +82,7 @@ export function QuizPanel({ videoId, onSelectTimestamp }: QuizPanelProps) {
       }
       setSession({ questions: body.data, currentIndex: 0, answers: {}, submitted: [], feedback: {} });
       setAnswer("");
+      notifyOrchestrationUpdated();
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to generate quiz.");
     } finally {
@@ -110,6 +113,7 @@ export function QuizPanel({ videoId, onSelectTimestamp }: QuizPanelProps) {
           : [...session.submitted, currentQuestion.id],
         feedback: { ...(session.feedback ?? {}), [currentQuestion.id]: body.data },
       });
+      notifyOrchestrationUpdated();
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to grade answer.");
     } finally {
@@ -184,7 +188,12 @@ export function QuizPanel({ videoId, onSelectTimestamp }: QuizPanelProps) {
                 misconception={currentFeedback.misconception}
                 onWatch={onSelectTimestamp}
                 startSec={currentFeedback.recommendedStartSec}
-              />
+              >
+                <PracticeCard
+                  misconception={currentFeedback.misconception}
+                  questionId={currentQuestion.id}
+                />
+              </MisconceptionFeedback>
             </div>
           ) : null}
 

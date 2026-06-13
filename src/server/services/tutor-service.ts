@@ -1,17 +1,19 @@
 import type { AIProvider, AnswerQuestionResult } from "@/lib/ai/contracts";
-import { createAIProvider } from "@/lib/ai/provider-factory";
+import { runRoutedAITask } from "@/lib/ai/orchestrator";
+import { createStableCacheKey, responseCache } from "@/lib/cache/response-cache";
 import { createToolLog, getVideoById } from "@/lib/db/demo-store";
 import { VideoMemoryService } from "@/server/services/video-memory-service";
 
 export type AskVideoResult = AnswerQuestionResult & {
   provider: AIProvider["name"] | "Local";
   latencyMs: number;
+  cached: boolean;
 };
 
 export class TutorService {
   constructor(
     private readonly videoMemory = new VideoMemoryService(),
-    private readonly provider: AIProvider = createAIProvider(),
+    private readonly provider?: AIProvider,
   ) {}
 
   async ask(videoId: string, question: string): Promise<AskVideoResult> {
@@ -48,19 +50,45 @@ export class TutorService {
         ],
         provider: "Local",
         latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
+        cached: false,
       };
     }
 
-    const response = await this.provider.answerQuestion({
-      video,
-      question,
-      evidence: segments,
+    const cacheKey = createStableCacheKey("timestamp-explanation", {
+      videoId,
+      question: question.trim().toLowerCase(),
+      evidence: segments.map(({ segmentId, startSec, endSec }) => ({ segmentId, startSec, endSec })),
     });
+    const cached = responseCache.get<AskVideoResult>(cacheKey);
+    if (cached) {
+      createToolLog({
+        tool: "TokenRouter",
+        operation: "Cache hit · timestamp explanation",
+        status: "success",
+        latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
+        outputSummary: "Returned repeated explanation without another model call.",
+      });
+      return { ...cached, cached: true, latencyMs: Math.max(0, Math.round(performance.now() - startedAt)) };
+    }
 
-    return {
-      ...response,
-      provider: this.provider.name,
+    createToolLog({
+      tool: "TokenRouter",
+      operation: "Cache miss · timestamp explanation",
+      status: "success",
+      latencyMs: 0,
+      outputSummary: "No matching explanation was cached; routing to a provider.",
+    });
+    const input = { video, question, evidence: segments };
+    const routed = this.provider
+      ? { result: await this.provider.answerQuestion(input), provider: this.provider.name }
+      : await runRoutedAITask("explanation", (provider) => provider.answerQuestion(input));
+
+    const result: AskVideoResult = {
+      ...routed.result,
+      provider: routed.provider,
       latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
+      cached: false,
     };
+    return responseCache.set(cacheKey, result);
   }
 }

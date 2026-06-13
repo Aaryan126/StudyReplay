@@ -6,10 +6,12 @@ import { EmptyState } from "@/components/empty-state";
 import { Panel } from "@/components/panel";
 import { TimestampEvidenceCard } from "@/components/timestamp-evidence-card";
 import type { AnswerQuestionResult } from "@/lib/ai/contracts";
+import { notifyOrchestrationUpdated } from "@/lib/utils/orchestration-events";
 
 type TutorResponse = AnswerQuestionResult & {
   provider: string;
   latencyMs: number;
+  cached?: boolean;
 };
 
 type TutorPanelProps = {
@@ -35,6 +37,7 @@ export function TutorPanel({
           followUpSuggestions: [],
           provider: "Local",
           latencyMs: 0,
+          cached: false,
         }
       : null,
   );
@@ -60,6 +63,7 @@ export function TutorPanel({
         throw new Error(body.error ?? "Unable to answer that question.");
       }
       setResponse(body.data);
+      notifyOrchestrationUpdated();
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to answer that question.");
     } finally {
@@ -80,7 +84,7 @@ export function TutorPanel({
             </div>
           ))}
           <p className="mt-3 text-xs text-[var(--muted)]">
-            {response.provider} · {response.confidence} confidence · {response.latencyMs} ms
+            {response.cached ? "Cache" : response.provider} · {response.confidence} confidence · {response.latencyMs} ms{response.cached ? " · cached" : ""}
           </p>
         </div>
       ) : (

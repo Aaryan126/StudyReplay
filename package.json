@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@daytona/sdk": "^0.187.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",

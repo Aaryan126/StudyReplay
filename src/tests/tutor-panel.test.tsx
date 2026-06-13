@@ -17,6 +17,7 @@ describe("TutorPanel interaction", () => {
           followUpSuggestions: [],
           provider: "Mock",
           latencyMs: 8,
+          cached: true,
         },
       }), { status: 200, headers: { "Content-Type": "application/json" } }),
     ));
@@ -33,6 +34,7 @@ describe("TutorPanel interaction", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ask" }));
 
     expect(await screen.findByText(/reuses prior work/i)).toBeInTheDocument();
+    expect(screen.getByText(/cached/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "03:14–04:02" }));
     await waitFor(() => {
       expect(screen.getByLabelText("Current video timestamp")).toHaveTextContent("03:14");

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { formatTimestampRange } from "@/lib/utils/time";
 
 type MisconceptionFeedbackProps = {
@@ -9,6 +11,7 @@ type MisconceptionFeedbackProps = {
   endSec: number;
   followUpQuestion?: string;
   onWatch?: (startSec: number) => void;
+  children?: ReactNode;
 };
 
 export function MisconceptionFeedback({
@@ -18,6 +21,7 @@ export function MisconceptionFeedback({
   endSec,
   followUpQuestion,
   onWatch,
+  children,
 }: MisconceptionFeedbackProps) {
   return (
     <section className="rounded-2xl border border-[#efd5a8] bg-[var(--warning-soft)] p-5">
@@ -37,6 +41,7 @@ export function MisconceptionFeedback({
           <p className="mt-1 text-sm font-semibold">{followUpQuestion}</p>
         </div>
       ) : null}
+      {children}
     </section>
   );
 }
