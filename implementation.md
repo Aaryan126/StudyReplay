@@ -8,8 +8,8 @@ The purpose of this file is to keep the coding agent, human builder, and future 
 
 ## Current Status
 
-**Current phase:** Phase 6 complete; Phase 7 not started  
-**Overall status:** Interactive grounded tutor and quiz generation flows complete  
+**Current phase:** Phase 8 complete; Phase 9 not started  
+**Overall status:** Core misconception loop and VideoDB-backed retrieval boundary complete  
 **Last updated:** 2026-06-13  
 **Current owner:** Coding agent / human developer  
 **Main branch state:** Directory is not initialized as a Git repository  
@@ -26,7 +26,7 @@ Package manager: npm 11.12.1
 Framework: Next.js 16.2.9 / React 19.2.7 / TypeScript 6.0.3 / Tailwind CSS 4.3.1
 Database: In-memory deterministic demo store
 AI provider mode: Mock by default; Kimi and TokenRouter adapters available
-VideoDB mode: Mock
+VideoDB mode: Mock adapter with local fallback; real REST adapter available
 Daytona mode: Mock
 TokenRouter mode: Mock
 Nosana mode: Disabled
@@ -38,7 +38,7 @@ Nosana mode: Disabled
 
 | Tool | Status | Mode | Notes |
 |---|---|---|---|
-| VideoDB | Adapter directory reserved | Mock | Local transcript fixture is the current fallback |
+| VideoDB | REST and mock adapters implemented | Mock default / Real ready | Search, transcript, URL registration, logs, and local fallback |
 | Kimi | Adapter implemented | Mock default / Real ready | OpenAI-compatible server adapter; key, base URL, and model configured |
 | Daytona | Adapter directory reserved | Mock | No execution flow implemented yet |
 | TokenRouter | Adapter implemented | Mock default / Config pending | Key is set; base URL and model still need sponsor-provided values |
@@ -647,6 +647,164 @@ curl http://127.0.0.1:3000/api/videos/building-fast-ai-systems/quiz
 
 ---
 
+## 2026-06-13 — Phase 7: Wrong-Answer Misconception Detection
+
+### Summary
+
+Completed the core StudyReplay loop: submitted quiz answers are graded against
+server-side questions and timestamped transcript evidence, then rendered as
+correct, partial, or incorrect feedback. Misconceptions include an exact replay
+range and a targeted follow-up question.
+
+### Files changed
+
+- Grading flow: `src/server/services/answer-grading-service.ts`
+- API: `src/app/api/quiz/[questionId]/answer/route.ts`
+- Mock reasoning: `src/lib/adapters/mock-ai-adapter.ts`
+- Persistence: `src/lib/db/demo-store.ts`
+- UI: `src/components/quiz-panel.tsx`,
+  `src/components/misconception-feedback.tsx`,
+  `src/components/learning-workspace-client.tsx`
+- Tests: `src/tests/answer-grading-route.test.ts`,
+  `src/tests/quiz-panel.test.tsx`
+
+### Features implemented
+
+- Validated grading endpoint with server-side expected answers.
+- Evidence selection from the question's source timestamp range.
+- Deterministic mock grading for correct, partial, incorrect, and the known
+  caching-versus-routing confusion.
+- Video-duration validation for recommended replay timestamps.
+- Stored learner attempts and tool logs.
+- Correct feedback state without a misconception warning.
+- Clickable “Watch this part” action and follow-up retry prompt.
+
+### Test results
+
+- Lint: Passed.
+- Typecheck: Passed.
+- Tests after Phase 7: 12 files passed, 43 tests passed.
+- Build: Passed after marking the interactive feedback component client-side.
+
+### Manual acceptance checks
+
+- [x] Known wrong answer identifies context caching vs model routing.
+- [x] Incorrect feedback includes 03:14–05:56 and a follow-up question.
+- [x] Correct answer has no misconception warning.
+- [x] Partial answer explains which side of the comparison is missing.
+- [x] Replay action updates the selected player timestamp.
+
+### Issues found
+
+- The production build caught an event handler crossing a server/client
+  boundary in `MisconceptionFeedback`; the component is now explicitly client-side.
+
+### Decisions made
+
+- Validate AI timestamps against video duration before persisting feedback.
+- Keep expected answers and source evidence server-side.
+- Allow learners to check an answer again after reviewing feedback.
+
+### Next steps
+
+- Route timestamp retrieval through VideoDB with graceful local fallback.
+
+---
+
+## 2026-06-13 — Phase 8: VideoDB Integration
+
+### Summary
+
+Implemented a provider-neutral video-memory layer with local, mock VideoDB, and
+real VideoDB REST adapters. Ask-video retrieval now uses this layer. Mock mode
+shows VideoDB operations in the orchestration timeline, while real failures or
+empty results continue through the tested local transcript fallback.
+
+### Files changed
+
+- Contracts/config: `src/lib/video-memory/contracts.ts`, `config.ts`,
+  `provider-factory.ts`
+- Adapters: `src/lib/adapters/local-video-memory-adapter.ts`,
+  `mock-videodb-adapter.ts`, `videodb-adapter.ts`
+- Fallback orchestration: `src/server/services/video-memory-service.ts`
+- Tutor integration: `src/server/services/tutor-service.ts`
+- Configuration: `.env`, `.env.example`
+- Demo logs: `src/lib/db/demo-data.ts`
+- Tests: `src/tests/videodb-adapter.test.ts`
+
+### Features implemented
+
+- `VideoMemoryProvider` interface for registration, transcript retrieval, and
+  timestamp search.
+- Mock VideoDB adapter backed by deterministic local data.
+- Real REST adapter using `x-access-token` authentication.
+- URL registration through `/collection/{collection_id}/upload`.
+- Timestamped spoken-word search through `/video/{video_id}/search/`.
+- Transcript import through `/video/{video_id}/transcription/`.
+- Mapping of VideoDB results to internal transcript and evidence types.
+- Failure and empty-result fallback to local ranked retrieval.
+- Visible VideoDB success/failure and fallback tool logs.
+
+### Commands run
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm audit
+npm run dev
+curl -X POST http://127.0.0.1:3000/api/quiz/quiz-cache-routing/answer
+curl -X POST http://127.0.0.1:3000/api/videos/building-fast-ai-systems/ask
+```
+
+### Test results
+
+- Lint: Passed with no warnings.
+- Typecheck: Passed.
+- Unit/UI/integration tests: 13 files passed, 50 tests passed.
+- Build: Passed.
+- Dependency audit: 0 vulnerabilities.
+- VideoDB tests: mock mode, URL registration, search mapping, transcript
+  mapping, empty responses, provider selection, logs, and fallback passed.
+- Live mock smoke checks: incorrect/correct/partial grading, VideoDB-routed ask,
+  and `/demo` all succeeded.
+
+### Manual acceptance checks
+
+- [x] Mock VideoDB calls appear in the orchestration timeline.
+- [x] Timestamped retrieval works through the video-memory layer.
+- [x] App continues using local search when VideoDB fails or returns no result.
+
+### Issues found
+
+- Real VideoDB mode needs an external video mapping. `VIDEODB_VIDEO_ID` remains
+  blank because the local demo fixture has not been uploaded to VideoDB.
+- No real upload/search was triggered to avoid consuming credits or processing
+  an unspecified video.
+
+### Decisions made
+
+- Use the official VideoDB REST API rather than adding an SDK dependency.
+- Keep `VIDEO_MEMORY_PROVIDER=mock` until a real VideoDB video ID is supplied.
+- Treat VideoDB as the preferred timestamp memory layer and local search as a
+  reliability fallback.
+
+### Environment handoff
+
+- Current defaults: `VIDEO_MEMORY_PROVIDER=mock`,
+  `VIDEODB_BASE_URL=https://api.videodb.io`, and collection `default`.
+- For real search, set `VIDEODB_VIDEO_ID` to an indexed VideoDB video ID and
+  change `VIDEO_MEMORY_PROVIDER=videodb`.
+- The configured API key remains server-only.
+
+### Next steps
+
+- Begin Phase 9 only: generate targeted practice and execute coding exercises
+  through a Daytona sandbox with text fallback.
+
+---
+
 ## Running Decision Log
 
 Use this section for architectural decisions.
@@ -664,6 +822,9 @@ Use this section for architectural decisions.
 | 2026-06-13 | Retrieval gates video answers | Prevents the model from inventing video-specific context when evidence is absent | Always call the model |
 | 2026-06-13 | Keep quiz answers server-only | Avoids leaking grading keys in public API responses | Return complete question objects |
 | 2026-06-13 | Persist quiz state in sessionStorage | Maintains progress without adding a database before it is needed | URL state or permanent local storage |
+| 2026-06-13 | Validate recommended timestamps against duration | Prevents malformed provider output from producing impossible replay links | Trust provider output |
+| 2026-06-13 | Video-memory provider with local fallback | Makes VideoDB central without allowing an external outage to break the demo | VideoDB-only retrieval |
+| 2026-06-13 | VideoDB REST integration | Uses the documented API directly and avoids another runtime dependency | Node SDK |
 
 ---
 
@@ -686,8 +847,8 @@ Use this section for architectural decisions.
 - [x] Implement AI adapters.
 - [x] Implement ask-video flow.
 - [x] Implement quiz flow.
-- [ ] Implement misconception detection.
-- [ ] Integrate VideoDB.
+- [x] Implement misconception detection.
+- [x] Integrate VideoDB.
 - [ ] Integrate Daytona.
 - [ ] Add TokenRouter/caching.
 - [ ] Polish demo.
@@ -701,11 +862,11 @@ Use this section for architectural decisions.
 - [x] Ask-video flow works.
 - [x] Timestamped evidence appears.
 - [x] Quiz generation works.
-- [ ] Wrong answer produces misconception diagnosis.
-- [ ] Recommended timestamp is clickable.
-- [ ] Follow-up question appears.
+- [x] Wrong answer produces misconception diagnosis.
+- [x] Recommended timestamp is clickable.
+- [x] Follow-up question appears.
 - [ ] Daytona practice works or fallback works.
-- [ ] Orchestration log shows sponsor tools.
+- [x] Orchestration log shows sponsor tools.
 - [x] App handles missing API keys.
 - [x] Build passes.
 - [ ] Final demo script is ready.

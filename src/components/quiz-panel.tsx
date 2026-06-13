@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/empty-state";
 import { Panel } from "@/components/panel";
-import type { PublicQuizQuestion } from "@/lib/types";
+import { MisconceptionFeedback } from "@/components/misconception-feedback";
+import type { LearnerAnswer, PublicQuizQuestion } from "@/lib/types";
 import { formatTimestampRange } from "@/lib/utils/time";
 
 type QuizSession = {
@@ -12,10 +13,12 @@ type QuizSession = {
   currentIndex: number;
   answers: Record<string, string>;
   submitted: string[];
+  feedback: Record<string, LearnerAnswer>;
 };
 
 type QuizPanelProps = {
   videoId: string;
+  onSelectTimestamp?: (startSec: number) => void;
 };
 
 function loadQuizSession(storageKey: string): QuizSession | null {
@@ -27,7 +30,7 @@ function loadQuizSession(storageKey: string): QuizSession | null {
   try {
     const parsed = JSON.parse(saved) as QuizSession;
     return Array.isArray(parsed.questions) && parsed.questions.length > 0
-      ? parsed
+      ? { ...parsed, feedback: parsed.feedback ?? {} }
       : null;
   } catch {
     window.sessionStorage.removeItem(storageKey);
@@ -35,7 +38,7 @@ function loadQuizSession(storageKey: string): QuizSession | null {
   }
 }
 
-export function QuizPanel({ videoId }: QuizPanelProps) {
+export function QuizPanel({ videoId, onSelectTimestamp }: QuizPanelProps) {
   const storageKey = `studyreplay-quiz-${videoId}`;
   const [session, setSession] = useState<QuizSession | null>(() =>
     loadQuizSession(storageKey),
@@ -54,9 +57,12 @@ export function QuizPanel({ videoId }: QuizPanelProps) {
   }, [session, storageKey]);
 
   const currentQuestion = session?.questions[session.currentIndex];
+  const currentFeedback = currentQuestion
+    ? session?.feedback?.[currentQuestion.id]
+    : undefined;
   const isSubmitted = useMemo(
-    () => Boolean(currentQuestion && session?.submitted.includes(currentQuestion.id)),
-    [currentQuestion, session],
+    () => Boolean(currentQuestion && currentFeedback),
+    [currentFeedback, currentQuestion],
   );
 
   async function generateQuiz() {
@@ -72,7 +78,7 @@ export function QuizPanel({ videoId }: QuizPanelProps) {
       if (!response.ok || !body.data?.length) {
         throw new Error(body.error ?? "Unable to generate quiz.");
       }
-      setSession({ questions: body.data, currentIndex: 0, answers: {}, submitted: [] });
+      setSession({ questions: body.data, currentIndex: 0, answers: {}, submitted: [], feedback: {} });
       setAnswer("");
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to generate quiz.");
@@ -81,16 +87,34 @@ export function QuizPanel({ videoId }: QuizPanelProps) {
     }
   }
 
-  function submitAnswer(event: React.FormEvent<HTMLFormElement>) {
+  async function submitAnswer(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!session || !currentQuestion || !answer.trim()) return;
-    setSession({
-      ...session,
-      answers: { ...session.answers, [currentQuestion.id]: answer.trim() },
-      submitted: session.submitted.includes(currentQuestion.id)
-        ? session.submitted
-        : [...session.submitted, currentQuestion.id],
-    });
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/quiz/${currentQuestion.id}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answer: answer.trim() }),
+      });
+      const body = (await response.json()) as { data?: LearnerAnswer; error?: string };
+      if (!response.ok || !body.data) {
+        throw new Error(body.error ?? "Unable to grade answer.");
+      }
+      setSession({
+        ...session,
+        answers: { ...session.answers, [currentQuestion.id]: answer.trim() },
+        submitted: session.submitted.includes(currentQuestion.id)
+          ? session.submitted
+          : [...session.submitted, currentQuestion.id],
+        feedback: { ...(session.feedback ?? {}), [currentQuestion.id]: body.data },
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to grade answer.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   function moveQuestion(direction: 1 | -1) {
@@ -139,12 +163,30 @@ export function QuizPanel({ videoId }: QuizPanelProps) {
 
           <button
             className="mt-3 w-full cursor-pointer rounded-xl bg-[#18231d] px-4 py-3 text-sm font-bold text-white hover:bg-[#26372e] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={!answer.trim()}
+            disabled={!answer.trim() || isLoading}
             type="submit"
           >
-            {isSubmitted ? "Answer saved" : "Submit answer"}
+            {isLoading ? "Checking..." : isSubmitted ? "Check again" : "Check my answer"}
           </button>
-          {isSubmitted ? <p className="mt-2 text-center text-xs font-medium text-[var(--accent)]">Saved for grading in the next phase.</p> : null}
+          {currentFeedback?.status === "correct" ? (
+            <section className="mt-4 rounded-xl border border-[#c6dfd0] bg-[var(--accent-soft)] p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.1em] text-[var(--accent)]">Correct</p>
+              <p className="mt-2 text-sm leading-6 text-[#315440]">{currentFeedback.explanation}</p>
+            </section>
+          ) : currentFeedback?.misconception &&
+            currentFeedback.recommendedStartSec !== undefined &&
+            currentFeedback.recommendedEndSec !== undefined ? (
+            <div className="mt-4">
+              <MisconceptionFeedback
+                endSec={currentFeedback.recommendedEndSec}
+                explanation={currentFeedback.explanation ?? "Review this concept and try again."}
+                followUpQuestion={currentFeedback.followUpQuestion}
+                misconception={currentFeedback.misconception}
+                onWatch={onSelectTimestamp}
+                startSec={currentFeedback.recommendedStartSec}
+              />
+            </div>
+          ) : null}
 
           <div className="mt-4 flex justify-between gap-3">
             <button className="cursor-pointer text-sm font-semibold text-[var(--muted)] disabled:opacity-30" disabled={session.currentIndex === 0} onClick={() => moveQuestion(-1)} type="button">Previous</button>

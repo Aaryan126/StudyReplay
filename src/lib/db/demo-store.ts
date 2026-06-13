@@ -5,10 +5,11 @@ import {
   demoVideo,
   initialToolLogs,
 } from "@/lib/db/demo-data";
-import type { QuizQuestion, ToolCallLog } from "@/lib/types";
+import type { LearnerAnswer, QuizQuestion, ToolCallLog } from "@/lib/types";
 
 const toolLogs = [...initialToolLogs];
 const generatedQuizzes = new Map<string, QuizQuestion[]>();
+const learnerAnswers: LearnerAnswer[] = [];
 
 export function listVideos() {
   return [demoVideo];
@@ -49,6 +50,22 @@ export function saveGeneratedQuiz(videoId: string, questions: QuizQuestion[]) {
   const saved = questions.filter((question) => question.videoId === videoId);
   generatedQuizzes.set(videoId, saved);
   return [...saved];
+}
+
+export function getQuizQuestionById(questionId: string) {
+  const generated = [...generatedQuizzes.values()].flat();
+  return [...generated, ...demoQuizQuestions].find(
+    (question) => question.id === questionId,
+  );
+}
+
+export function saveLearnerAnswer(answer: LearnerAnswer) {
+  learnerAnswers.push(answer);
+  return answer;
+}
+
+export function listLearnerAnswers() {
+  return [...learnerAnswers];
 }
 
 export function listToolLogs() {

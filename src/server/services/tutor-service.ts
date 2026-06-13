@@ -1,7 +1,7 @@
 import type { AIProvider, AnswerQuestionResult } from "@/lib/ai/contracts";
 import { createAIProvider } from "@/lib/ai/provider-factory";
 import { createToolLog, getVideoById } from "@/lib/db/demo-store";
-import { TranscriptSearchService } from "@/server/services/transcript-search-service";
+import { VideoMemoryService } from "@/server/services/video-memory-service";
 
 export type AskVideoResult = AnswerQuestionResult & {
   provider: AIProvider["name"] | "Local";
@@ -10,7 +10,7 @@ export type AskVideoResult = AnswerQuestionResult & {
 
 export class TutorService {
   constructor(
-    private readonly searchService = new TranscriptSearchService(),
+    private readonly videoMemory = new VideoMemoryService(),
     private readonly provider: AIProvider = createAIProvider(),
   ) {}
 
@@ -21,7 +21,7 @@ export class TutorService {
     }
 
     const startedAt = performance.now();
-    const retrieval = this.searchService.search(videoId, question, { topK: 3 });
+    const segments = await this.videoMemory.search(videoId, question, 3);
     const retrievalLatencyMs = Math.max(0, Math.round(performance.now() - startedAt));
 
     createToolLog({
@@ -31,12 +31,12 @@ export class TutorService {
       latencyMs: retrievalLatencyMs,
       inputSummary: question.slice(0, 120),
       outputSummary:
-        retrieval.segments.length > 0
-          ? `Found ${retrieval.segments.length} evidence segment(s).`
+        segments.length > 0
+          ? `Found ${segments.length} evidence segment(s).`
           : "No sufficiently relevant transcript evidence found.",
     });
 
-    if (retrieval.segments.length === 0) {
+    if (segments.length === 0) {
       return {
         answer:
           "I could not find enough evidence in this video to answer that confidently. Try asking about a concept covered in the chapter map.",
@@ -54,7 +54,7 @@ export class TutorService {
     const response = await this.provider.answerQuestion({
       video,
       question,
-      evidence: retrieval.segments,
+      evidence: segments,
     });
 
     return {

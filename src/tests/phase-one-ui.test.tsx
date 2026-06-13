@@ -29,7 +29,7 @@ describe("Phase 1 UI components", () => {
   it("renders misconception feedback and its replay range", () => {
     render(<MisconceptionFeedback endSec={242} explanation="Caching reuses context." misconception="Caching vs routing" startSec={194} />);
     expect(screen.getByText("Caching vs routing")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /watch 03:14–04:02/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /watch this part · 03:14–04:02/i })).toBeInTheDocument();
   });
 
   it("renders tutor and chapter empty states", () => {

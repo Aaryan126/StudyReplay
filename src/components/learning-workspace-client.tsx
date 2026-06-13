@@ -33,7 +33,7 @@ export function LearningWorkspaceClient({ video, tutor }: LearningWorkspaceClien
           onSelectTimestamp={setSelectedTimeSec}
           videoId={video.id}
         />
-        <QuizPanel videoId={video.id} />
+        <QuizPanel onSelectTimestamp={setSelectedTimeSec} videoId={video.id} />
       </div>
     </>
   );

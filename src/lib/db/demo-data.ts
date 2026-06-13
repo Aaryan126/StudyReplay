@@ -192,11 +192,11 @@ export const initialToolLogs: ToolCallLog[] = [
   },
   {
     id: "log-local-evidence",
-    tool: "Local",
-    operation: "Resolve cached evidence",
+    tool: "VideoDB",
+    operation: "Mock · Search transcript",
     status: "success",
     latencyMs: 4,
-    outputSummary: "Matched the known caching versus routing segment at 03:14–05:56.",
+    outputSummary: "Matched timestamped spoken-word evidence with local fallback data.",
     createdAt: "2026-06-13T04:05:02.000Z",
   },
 ];
