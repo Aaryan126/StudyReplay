@@ -8,8 +8,8 @@ The purpose of this file is to keep the coding agent, human builder, and future 
 
 ## Current Status
 
-**Current phase:** Phase 10 complete; Phase 11 not started  
-**Overall status:** Executable practice, cost-aware routing, response caching, and live orchestration visibility complete  
+**Current phase:** Phase 10 complete; Phase 11 deferred; Phase 12 documentation started  
+**Overall status:** Core product complete through Phase 10; setup and end-to-end testing documentation added  
 **Last updated:** 2026-06-13  
 **Current owner:** Coding agent / human developer  
 **Main branch state:** Directory is not initialized as a Git repository  
@@ -933,6 +933,42 @@ npm audit
   otherwise continue to Phase 12 hardening when directed.
 - Obtain `TOKENROUTER_BASE_URL` and `TOKENROUTER_MODEL` before enabling
   `TOKEN_ROUTER_MODE=real`.
+
+---
+
+## 2026-06-13 — Phase 12 Partial: README and Testing Documentation
+
+### Summary
+
+Added project setup, architecture, environment-mode, limitation, and testing
+documentation. Phase 12 remains incomplete because final manual regression,
+real-provider smoke tests, and demo hardening have not been performed.
+
+### Files changed
+
+- `README.md`
+- `MANUAL_TESTING.md`
+- `implementation.md`
+
+### Features documented
+
+- Mock-first local setup and quality commands.
+- Optional Kimi, TokenRouter, VideoDB, and Daytona activation.
+- Full UI flow, API smoke commands, cache checks, fallback tests, and final
+  acceptance checklist.
+- Explicit current limitation that timestamp seeking updates a preview
+  placeholder rather than streaming real media.
+
+### Tests run
+
+- Documentation-only change; automated checks were not rerun because no runtime
+  source or configuration files changed.
+
+### Issues and next steps
+
+- Complete the `MANUAL_TESTING.md` final-pass checklist before presenting.
+- Add real media playback if the final product must demonstrate actual seeking.
+- Keep Phase 11 deferred unless Nosana materially improves the sponsor story.
 
 ---
 
